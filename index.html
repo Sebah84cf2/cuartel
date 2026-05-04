@@ -794,6 +794,7 @@ function renderTrends(){
   html+=actDrainCard(filtered);
   html+=gastoChart(days);
   wrap.innerHTML=html;
+  initDrainListeners();
 }
 function getRangeDays(from,to,entries){
   var days=[];
@@ -855,45 +856,43 @@ function actDrainCard(entries){
   function fmt2(ts){var d=new Date(ts);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
   function fmtH(t){if(!t)return'';return Math.floor(t)+'h'+(t%1===0.5?':30':'');}
   function fmtEv(v){return (v>0?'+':'')+String(v);}
-  function makeChip(bg,col,border,txt){return '<span style="font-family:var(--font-mono);font-size:10px;padding:2px 6px;border-radius:4px;background:'+bg+';color:'+col+';border:0.5px solid '+border+'">'+txt+'</span>';}
-  var rows=acts.map(function(a,i){
+  function chip(bg,col,bdr,txt){return '<span style="font-family:var(--font-mono);font-size:10px;padding:2px 6px;border-radius:4px;background:'+bg+';color:'+col+';border:0.5px solid '+bdr+'">'+txt+'</span>';}
+  var html='<div class="sec-title">&#191;Qu&#233; te drena?</div><div class="dist-card" style="padding:14px"><div class="dist-lbl">Toc&#225; para ver el detalle</div>';
+  acts.forEach(function(a,i){
     var avg=a.total/a.count;
     var pct=Math.round((Math.min(Math.abs(avg),5)/5)*100);
     var col=avg>=0?'var(--teal)':'var(--red)';
-    var uid='dr'+String(i);
     var avgStr=(avg>=0?'+':'')+avg.toFixed(1);
-    var items=a.items.slice().sort(function(x,y){return x.ts-y.ts;}).map(function(e){
-      var note=e.note?e.note:'<em style="color:var(--text3)">sin nota</em>';
+    var uid='dr'+i;
+    var items='';
+    a.items.slice().sort(function(x,y){return x.ts-y.ts;}).forEach(function(e){
+      var note=e.note?'<span style="font-size:13px;color:var(--text2);flex:1;line-height:1.3">'+e.note+'</span>':'<span style="font-size:12px;color:var(--text3);flex:1;font-style:italic">sin nota</span>';
       var eCol=e.energy>=0?'var(--teal)':'var(--red)';
       var eBg=e.energy>=0?'#091a10':'#1a0808';
       var eBd=e.energy>=0?'#0F6E56':'#8A2525';
-      var eChip=makeChip(eBg,eCol,eBd,fmtEv(e.energy));
-      var tChip=e.time?makeChip('#08111f','var(--blue)','var(--blue-dim)',fmtH(e.time)):'';
-      var row=document.createElement('div');
-      return '<div style="background:var(--bg);border-radius:8px;padding:7px 10px;display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+      items+='<div style="background:var(--bg);border-radius:8px;padding:7px 10px;display:flex;align-items:center;gap:8px;margin-bottom:4px">'
         +'<span style="font-family:var(--font-mono);font-size:10px;color:var(--text3);flex-shrink:0;width:38px">'+fmt2(e.ts)+'</span>'
-        +'<span style="font-size:13px;color:var(--text2);flex:1;line-height:1.3">'+note+'</span>'
-        +'<div style="display:flex;gap:4px;flex-shrink:0">'+eChip+tChip+'</div>'
+        +note
+        +'<div style="display:flex;gap:4px;flex-shrink:0">'+chip(eBg,eCol,eBd,fmtEv(e.energy))+(e.time?chip('#08111f','var(--blue)','var(--blue-dim)',fmtH(e.time)):'')+'</div>'
         +'</div>';
-    }).join('');
-    var header='<div onclick="toggleDrain(\''+uid+'\');" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;cursor:pointer;-webkit-user-select:none">'
-      +'<div style="display:flex;align-items:center;gap:8px">'
-      +'<span id="'+uid+'-a" style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">&#9654;</span>'
-      +'<span style="font-size:16px;font-weight:600;color:var(--text)">'+a.actName+'</span>'
-      +'<span style="font-family:var(--font-mono);font-size:10px;color:var(--text3)">&times;'+String(a.count)+'</span>'
+    });
+    html+='<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:0.5px solid var(--bg3)">'
+      +'<div class="drain-header" data-uid="'+uid+'" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;cursor:pointer;-webkit-user-select:none">'
+        +'<div style="display:flex;align-items:center;gap:8px">'
+          +'<span id="'+uid+'-a" style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">&#9654;</span>'
+          +'<span style="font-size:16px;font-weight:600;color:var(--text)">'+a.actName+'</span>'
+          +'<span style="font-family:var(--font-mono);font-size:10px;color:var(--text3)">&times;'+a.count+'</span>'
+        +'</div>'
+        +'<span style="font-family:var(--font-mono);font-size:15px;font-weight:600;color:'+col+'">'+avgStr+'</span>'
       +'</div>'
-      +'<span style="font-family:var(--font-mono);font-size:15px;font-weight:600;color:'+col+'">'+avgStr+'</span>'
+      +'<div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden">'
+        +'<div style="height:100%;border-radius:2px;width:'+pct+'%;background:'+col+'"></div>'
+      +'</div>'
+      +'<div id="'+uid+'" style="display:none;margin-top:8px">'+items+'</div>'
       +'</div>';
-    var bar='<div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden">'
-      +'<div style="height:100%;border-radius:2px;width:'+String(pct)+'%;background:'+col+'"></div>'
-      +'</div>';
-    var detail='<div id="'+uid+'" style="display:none;margin-top:8px">'+items+'</div>';
-    return '<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:0.5px solid var(--bg3)">'+header+bar+detail+'</div>';
-  }).join('');
-  return '<div class="sec-title">&#191;Qu&#233; te drena?</div>'
-    +'<div class="dist-card" style="padding:14px">'
-    +'<div class="dist-lbl">Toc&#225; para ver el detalle</div>'
-    +rows+'</div>';
+  });
+  html+='</div>';
+  return html;
 }
 function toggleDrain(id){
   var el=document.getElementById(id);
@@ -902,6 +901,11 @@ function toggleDrain(id){
   var op=el.style.display==='block';
   el.style.display=op?'none':'block';
   if(ar)ar.innerHTML=op?'&#9654;':'&#9660;';
+}
+function initDrainListeners(){
+  document.querySelectorAll('.drain-header').forEach(function(el){
+    el.addEventListener('click',function(){toggleDrain(el.getAttribute('data-uid'));});
+  });
 }
 
 function toggleDrain(id){
@@ -1090,6 +1094,7 @@ async function migrateLocalToSupabase(){
 
 /* ── INIT ── */
 window.toggleDrain=toggleDrain;
+window.initDrainListeners=initDrainListeners;
 initPin();
 </script>
 </body>
