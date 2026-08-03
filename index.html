@@ -412,7 +412,7 @@ async function sbInit(){
 }
 async function sbLoad(){
   try{
-    var r=await fetch(SB_URL+'/rest/v1/entradas?order=ts.asc&select=*',{headers:Object.assign({},SB_HEADERS,{'Prefer':'return=representation'})});
+    var r=await fetch(SB_URL+'/rest/v1/entradas?order=ts.desc&select=*',{headers:Object.assign({},SB_HEADERS,{'Prefer':'return=representation'})});
     if(!r.ok) throw new Error('fetch failed');
     var rows=await r.json();
     var entries=rows.map(function(r){var rd=r.day;if(rd&&rd.length<10){var p=rd.split('-');rd=p[0]+'-'+p[1].padStart(2,'0')+'-'+p[2].padStart(2,'0');}return{ts:r.ts,day:rd,actId:r.act_id,actName:r.act_name,energy:r.energy,time:r.time,money:r.money,note:r.note||''};});
@@ -547,9 +547,13 @@ function unlockApp(){
   document.getElementById('app').style.display='flex';
   document.getElementById('app').style.flexDirection='column';
   initApp();
-  createTableIfNeeded().then(function(){
-    migrateLocalToSupabase().catch(function(e){console.log('migrate error',e);});
-  }).catch(function(e){console.log('table error',e);});
+  createTableIfNeeded().catch(function(e){
+    console.log('table error',e);
+  });
+
+  // Migración automática desactivada para evitar volver a insertar
+  // registros antiguos guardados en localStorage.
+  // migrateLocalToSupabase().catch(function(e){console.log('migrate error',e);});
 }
 function lockApp(){
   pinBuffer='';pinMode='unlock';updateDots();
