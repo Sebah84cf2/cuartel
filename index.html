@@ -195,9 +195,31 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .dist-val{font-family:var(--font-mono);font-size:14px;width:36px;text-align:right;flex-shrink:0}
 
 .no-data{text-align:center;padding:40px 20px;color:var(--text3);font-size:14px;line-height:2;font-family:var(--font-mono)}
+
+/* Seguridad Supabase Auth */
+#auth-screen{position:absolute;inset:0;z-index:300;background:var(--bg);display:none;align-items:center;justify-content:center;padding:22px}
+.auth-box{width:100%;max-width:380px;background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:22px}
+.auth-box h2{font-family:var(--font-mono);color:var(--amber);font-size:18px;margin-bottom:10px}
+.auth-box p{font-size:15px;color:var(--text2);line-height:1.45;margin-bottom:14px}
+.auth-box input{width:100%;padding:12px;margin:0 0 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:17px}
+.auth-box button{width:100%;padding:12px;background:var(--amber);color:var(--amber-dark);font-size:17px;border:0;border-radius:8px;font-weight:bold;cursor:pointer}
+#auth-error{color:#ff9999;font-size:14px;min-height:20px;margin-top:10px;overflow-wrap:anywhere}
 </style>
 </head>
 <body>
+
+<div id="auth-screen">
+  <div class="auth-box">
+    <h2>🔐 CUARTEL GENERAL</h2>
+    <p>Iniciá sesión con el usuario que creaste en Supabase Auth. Tu PIN sigue siendo un bloqueo local adicional.</p>
+    <form id="auth-form" onsubmit="event.preventDefault();cgLogin()">
+      <input type="email" id="auth-email" placeholder="Correo electrónico" autocomplete="username" required>
+      <input type="password" id="auth-pass" placeholder="Contraseña" autocomplete="current-password" required>
+      <button id="auth-btn" type="submit">Ingresar</button>
+    </form>
+    <div id="auth-error" role="alert"></div>
+  </div>
+</div>
 
 <!-- PIN SCREEN -->
 <div id="pin-screen">
@@ -267,6 +289,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <div class="alert-lbl">Comandante</div>
       <div class="alert-txt" id="alert-txt">Registrá tu primera actividad para ver el análisis.</div>
     </div>
+    <div class="sec-title">☘ Hábitos LIFE RPG · hoy</div>
+    <div id="cg-habits" style="margin:0 14px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--bg2);font-size:16px;color:var(--text2)">Cargando hábitos…</div>
+    <div style="font-size:12px;color:var(--text3);margin:4px 16px 12px">Los hábitos se marcan desde LIFE RPG; esta vista muestra su estado sincronizado.</div>
     <div class="sec-title">Log de hoy</div>
     <div class="log-feed" id="log-feed"></div>
     <button class="fab" onclick="goTab('reg')">+ Registrar actividad</button>
@@ -326,7 +351,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <div class="impact-block" style="margin-bottom:14px">
         <div class="ib-title">Exportar</div>
         <div style="padding:14px 14px 6px">
-          <div style="font-size:15px;color:var(--text2);line-height:1.6;margin-bottom:12px">Descargá un archivo JSON con todos tus registros. Guardalo en iCloud, Google Drive o donde quieras.</div>
+          <div style="font-size:15px;color:var(--text2);line-height:1.6;margin-bottom:12px">Descargá un JSON completo desde Supabase con verificación de cantidad. Guardalo en iCloud, Google Drive o donde quieras.</div>
           <button class="fab" style="margin:0;width:100%" onclick="exportBackup()">Descargar backup</button>
         </div>
         <div style="padding:0 14px 14px"><div style="font-family:var(--font-mono);font-size:12px;color:var(--text3)" id="export-info"></div></div>
@@ -335,7 +360,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <div class="impact-block" style="margin-bottom:14px">
         <div class="ib-title">Importar</div>
         <div style="padding:14px">
-          <div style="font-size:15px;color:var(--text2);line-height:1.6;margin-bottom:12px">Restaurá un backup anterior. <span style="color:var(--amber)">Reemplaza todos los datos actuales.</span></div>
+          <div style="font-size:15px;color:var(--text2);line-height:1.6;margin-bottom:12px">La restauración está deshabilitada durante la migración para proteger tus datos.</div>
           <label style="display:block;background:var(--bg3);border:0.5px dashed var(--border2);border-radius:10px;padding:16px;text-align:center;cursor:pointer">
             <div style="font-family:var(--font-mono);font-size:13px;color:var(--text2);margin-bottom:4px">Tocá para elegir archivo</div>
             <div style="font-size:13px;color:var(--text3)" id="import-filename">ningún archivo seleccionado</div>
@@ -403,49 +428,110 @@ var DB = 'cg_entries_v1';
 var PIN_KEY = 'cg_pin';
 var SB_URL = 'https://pekxlmxqxvkxddqnyedy.supabase.co';
 var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBla3hsbXhxeHZreGRkcW55ZWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMzM0OTksImV4cCI6MjA5MjcwOTQ5OX0.kQTYLRUulEOzDYt3BcJN3cfhbOlRaZ-bnAWs0gm9aM0';
-var SB_HEADERS = {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY};
-
-async function sbInit(){
+var AUTH_UID = '8430cd54-fb25-4cf4-9313-679d1c3fe002';
+var CG_SESSION_KEY = 'cg_auth_session_v1';
+var cgSession = null;
+var cgRefreshing = null;
+function sessionSave(s){
+  cgSession={access_token:s.access_token,refresh_token:s.refresh_token,expires_at:Math.floor(Date.now()/1000)+(s.expires_in||3600)-30,user:s.user};
+  sessionStorage.setItem(CG_SESSION_KEY,JSON.stringify(cgSession));
+}
+function sessionClear(){cgSession=null;sessionStorage.removeItem(CG_SESSION_KEY)}
+function authOverlay(show,msg){
+  document.getElementById('auth-screen').style.display=show?'flex':'none';
+  document.getElementById('auth-error').textContent=msg||'';
+}
+async function cgLogin(){
+  var btn=document.getElementById('auth-btn');btn.disabled=true;btn.textContent='Ingresando...';
   try{
-    await fetch(SB_URL+'/rest/v1/entradas?limit=1',{headers:SB_HEADERS});
-  }catch(e){}
+    var r=await fetch(SB_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'apikey':SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('auth-email').value.trim(),password:document.getElementById('auth-pass').value})});
+    var o=await r.json();
+    if(!r.ok||!o.access_token)throw new Error(o.msg||o.error_description||o.message||'Credenciales incorrectas');
+    if(!o.user||o.user.id!==AUTH_UID)throw new Error('Esta cuenta no está autorizada para este Cuartel.');
+    sessionSave(o);
+    document.getElementById('auth-pass').value='';authOverlay(false);
+    await sbLoad();refreshHUD();
+  }catch(e){sessionClear();authOverlay(true,e.message)}
+  finally{btn.disabled=false;btn.textContent='Ingresar'}
+}
+async function ensureSession(){
+  if(!cgSession){try{cgSession=JSON.parse(sessionStorage.getItem(CG_SESSION_KEY)||'null')}catch(e){cgSession=null}}
+  if(!cgSession||!cgSession.access_token)throw new Error('Iniciá sesión para sincronizar.');
+  if(cgSession.user&&cgSession.user.id!==AUTH_UID){sessionClear();throw new Error('Usuario no autorizado.');}
+  if((cgSession.expires_at||0)>Math.floor(Date.now()/1000)+30)return cgSession.access_token;
+  if(!cgRefreshing){
+    cgRefreshing=(async function(){
+      var r=await fetch(SB_URL+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{'apikey':SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:cgSession.refresh_token})});
+      var o=await r.json();if(!r.ok||!o.access_token||!o.user||o.user.id!==AUTH_UID)throw new Error('Sesión vencida. Volvé a ingresar.');
+      sessionSave(o);return cgSession.access_token;
+    })().catch(function(e){sessionClear();authOverlay(true,e.message);throw e}).finally(function(){cgRefreshing=null});
+  }
+  return cgRefreshing;
+}
+async function sbRequest(path,opts){
+  var token=await ensureSession();opts=opts||{};
+  var hdr=Object.assign({'apikey':SB_KEY,'Authorization':'Bearer '+token},opts.headers||{});
+  if(opts.body)hdr['Content-Type']='application/json';
+  var r=await fetch(SB_URL+'/rest/v1/'+path,Object.assign({},opts,{headers:hdr}));
+  if(!r.ok){var info=await r.text();throw new Error('Supabase '+r.status+': '+info.slice(0,240))}
+  return r;
+}
+function rowToEntry(r){
+  var rd=r.day;if(rd&&rd.length<10){var p=rd.split('-');rd=p[0]+'-'+p[1].padStart(2,'0')+'-'+p[2].padStart(2,'0')}
+  return {ts:r.ts,day:rd,actId:r.act_id,actName:r.act_name,energy:r.energy,time:r.time,money:r.money,note:r.note||''};
+}
+// Consulta read-only de hábitos guardados por LIFE RPG en la misma cuenta Supabase.
+async function cgLoadHabits(){
+ const box=document.getElementById('cg-habits');if(!box)return;
+ try{
+  const res=await sbRequest('life_rpg_data?select=data&user_id=eq.'+AUTH_UID+'&limit=1');
+  const rows=await res.json(),doc=rows[0]?.data;
+  if(!doc?.life?.habits){box.textContent='Todavía no hay hábitos sincronizados.';return}
+  const today=new Date(),day=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  const habits=doc.life.habits,activities=doc.activities||[];
+  box.replaceChildren();
+  habits.forEach(function(h){
+   const auto=activities.some(a=>a.finishedAt&&a.day===day&&String(a.habitId||'')===String(h.id));
+   const done=!!h.marks?.[day]||auto;
+   const row=document.createElement('div');row.style.cssText='padding:6px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:8px';
+   const label=document.createElement('span');label.textContent=h.name;
+   const status=document.createElement('b');status.textContent=done?'✓ Cumplido':'· Sin registrar';status.style.color=done?'var(--teal)':'var(--text3)';
+   row.append(label,status);box.append(row);
+  });
+  if(!habits.length)box.textContent='Sin hábitos creados.';
+ }catch(e){box.textContent='No se pudieron cargar los hábitos: '+e.message}
 }
 async function sbLoad(){
   try{
-    var r=await fetch(SB_URL+'/rest/v1/entradas?order=ts.desc&select=*',{headers:Object.assign({},SB_HEADERS,{'Prefer':'return=representation'})});
-    if(!r.ok) throw new Error('fetch failed');
-    var rows=await r.json();
-    var entries=rows.map(function(r){var rd=r.day;if(rd&&rd.length<10){var p=rd.split('-');rd=p[0]+'-'+p[1].padStart(2,'0')+'-'+p[2].padStart(2,'0');}return{ts:r.ts,day:rd,actId:r.act_id,actName:r.act_name,energy:r.energy,time:r.time,money:r.money,note:r.note||''};});
-    localStorage.setItem(DB,JSON.stringify(entries));
-    return entries;
-  }catch(e){
-    return loadDB();
-  }
+    var rows=[];var limit=500;var offset=0;
+    while(true){
+      var resp=await sbRequest('entradas?select=*&order=ts.asc&limit='+limit+'&offset='+offset);
+      var part=await resp.json();
+      rows.push(...part);offset+=part.length;
+      if(part.length<limit)break;
+      if(offset>100000)throw new Error('Límite preventivo de registros superado');
+    }
+    var entries=rows.map(rowToEntry);
+    localStorage.setItem(DB,JSON.stringify(entries));return entries;
+  }catch(e){console.error('No se pudo sincronizar:',e);if(cgSession)console.warn('Se muestra la última copia local.');return loadDB()}
 }
 async function sbSave(entry){
-  try{
-    var body=JSON.stringify({ts:entry.ts,day:entry.day,act_id:entry.actId,act_name:entry.actName,energy:entry.energy,time:entry.time,money:entry.money,note:entry.note||''});
-    await fetch(SB_URL+'/rest/v1/entradas',{method:'POST',headers:Object.assign({},SB_HEADERS,{'Prefer':'return=minimal'}),body:body});
-  }catch(e){}
-  var all=loadDB();
-  all.push(entry);
-  saveDB(all);
+  var body=JSON.stringify({ts:entry.ts,day:entry.day,act_id:entry.actId,act_name:entry.actName,energy:entry.energy,time:entry.time,money:entry.money,note:entry.note||''});
+  await sbRequest('entradas',{method:'POST',headers:{'Prefer':'return=minimal'},body:body});
+  var all=loadDB().filter(function(e){return e.ts!==entry.ts});all.push(entry);saveDB(all);
 }
 async function sbDelete(ts){
-  try{
-    await fetch(SB_URL+'/rest/v1/entradas?ts=eq.'+ts,{method:'DELETE',headers:SB_HEADERS});
-  }catch(e){}
-  var all=loadDB().filter(function(x){return x.ts!==ts;});
-  saveDB(all);
+  await sbRequest('entradas?ts=eq.'+encodeURIComponent(ts),{method:'DELETE'});
+  saveDB(loadDB().filter(function(x){return x.ts!==ts}));
 }
 async function sbUpdate(ts,fields){
-  try{
-    var body=JSON.stringify({energy:fields.energy,time:fields.time,money:fields.money,note:fields.note||''});
-    await fetch(SB_URL+'/rest/v1/entradas?ts=eq.'+ts,{method:'PATCH',headers:Object.assign({},SB_HEADERS,{'Prefer':'return=minimal'}),body:body});
-  }catch(e){}
-  var all=loadDB();
-  var idx=all.findIndex(function(x){return x.ts===ts;});
-  if(idx>=0){all[idx]=Object.assign(all[idx],fields);saveDB(all);}
+  await sbRequest('entradas?ts=eq.'+encodeURIComponent(ts),{method:'PATCH',body:JSON.stringify({energy:fields.energy,time:fields.time,money:fields.money,note:fields.note||''})});
+  var all=loadDB();var idx=all.findIndex(function(x){return x.ts===ts});
+  if(idx>=0){all[idx]=Object.assign(all[idx],fields);saveDB(all)}
+}
+async function cgAuthStart(){
+  try{await ensureSession();authOverlay(false);await sbLoad();refreshHUD()}
+  catch(e){authOverlay(true,'Ingresá con tu cuenta de Supabase Auth.')}
 }
 var pinBuffer = '';
 var pinSetupFirst = '';
@@ -547,9 +633,7 @@ function unlockApp(){
   document.getElementById('app').style.display='flex';
   document.getElementById('app').style.flexDirection='column';
   initApp();
-  createTableIfNeeded().catch(function(e){
-    console.log('table error',e);
-  });
+  cgAuthStart();
 
   // Migración automática desactivada para evitar volver a insertar
   // registros antiguos guardados en localStorage.
@@ -585,6 +669,7 @@ function goTab(t){
 
 /* ── HUD ── */
 function refreshHUD(){
+  if(cgSession)cgLoadHabits();
   sbLoad().then(function(all){
   var today=all.filter(function(e){return e.day===todayStr()});
   var energyEntries=today.filter(function(e){return e.energy!==null});
@@ -735,7 +820,7 @@ function pickT(v,el){
   document.getElementById('scale-t').querySelectorAll('.ib-s').forEach(function(x){x.classList.remove('sel-t');});
   el.classList.add('sel-t');
 }
-function saveEntry(){
+async function saveEntry(){
   if(selE===null){alert('Indicá el impacto en energía.');return;}
   if(selT===null){alert('Indicá el tiempo dedicado.');return;}
   var custom=document.getElementById('custom-act').value.trim();
@@ -752,8 +837,8 @@ function saveEntry(){
     money:money,
     note:note
   };
-  sbSave(entry).then(function(){refreshHUD();});
-  goTab('hud');
+  try{await sbSave(entry);goTab('hud');refreshHUD()}
+  catch(e){alert('No se guardó en Supabase: '+e.message+'\nReintentá al recuperar la conexión.')}
 }
 
 /* ── TRENDS ── */
@@ -934,8 +1019,14 @@ function gastoChart(days){
 }
 
 /* ── BACKUP ── */
-function exportBackup(){
-  var all=loadDB();
+async function exportBackup(){
+  if(!cgSession){alert('Primero iniciá sesión.');return;}
+  try{await ensureSession();}catch(e){alert(e.message);return;}
+  var all=await sbLoad();
+  // Verificar cantidad con consulta exacta antes de afirmar que es completo.
+  var check=await sbRequest('entradas?select=ts&limit=1',{headers:{'Prefer':'count=exact'}});
+  var total=parseInt((check.headers.get('content-range')||'').split('/')[1],10);
+  if(!Number.isFinite(total)||all.length!==total){alert('Exportación cancelada: se recuperaron '+all.length+' de '+total+' registros.');return;}
   var payload={version:1,exported:new Date().toISOString(),entries:all};
   var blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   var url=URL.createObjectURL(blob);
@@ -970,6 +1061,7 @@ function previewImport(input){
   reader.readAsText(file);
 }
 function doImport(){
+  alert('Importación pausada por seguridad durante la migración. No se modificó la base de datos.');return;
   if(!importData){alert('Primero elegí un archivo de backup válido.');return;}
   if(!confirm('¿Reemplazar TODOS los datos actuales con este backup? Esta acción no se puede deshacer.'))return;
   saveDB(importData);
@@ -1013,11 +1105,10 @@ function openDelModal(ts){
   document.getElementById('modal-del-sub').textContent = act.name + ' · ' + fmtTime(d);
   document.getElementById('modal-del').style.display = 'flex';
 }
-function confirmDelete(){
+async function confirmDelete(){
   if(!modalTs) return;
   var ts=modalTs;
-  sbDelete(ts).then(function(){refreshHUD();});
-  closeModals();
+  try{await sbDelete(ts);closeModals();refreshHUD()}catch(e){alert('No se borró: '+e.message)}
 }
 function openEditModal(ts){
   modalTs = ts;
@@ -1059,43 +1150,20 @@ function modalPickT(v,el){
   document.getElementById('modal-scale-t').querySelectorAll('.ib-s').forEach(function(x){x.classList.remove('sel-t');});
   el.classList.add('sel-t');
 }
-function confirmEdit(){
+async function confirmEdit(){
   if(modalSelE===null){alert('Indicá el impacto en energía.');return;}
   if(modalSelT===null){alert('Indicá el tiempo.');return;}
   var all = loadDB();
   var idx = all.findIndex(function(x){return x.ts===modalTs});
   if(idx<0) return;
   var fields={energy:modalSelE,time:modalSelT,money:parseFloat(document.getElementById('modal-money').value)||0,note:document.getElementById('modal-note').value.trim()};
-  sbUpdate(modalTs,fields).then(function(){refreshHUD();});
-  closeModals();
+  try{await sbUpdate(modalTs,fields);closeModals();refreshHUD()}catch(e){alert('No se modificó: '+e.message)}
 }
 function closeModals(){
   document.getElementById('modal-del').style.display='none';
   document.getElementById('modal-edit').style.display='none';
   modalTs=null;
 }
-/* ── SUPABASE SETUP ── */
-async function createTableIfNeeded(){
-  try{
-    await fetch(SB_URL+'/rest/v1/entradas?limit=1',{headers:SB_HEADERS});
-  }catch(e){}
-}
-async function migrateLocalToSupabase(){
-  var local=loadDB();
-  if(!local.length) return;
-  var migrated=localStorage.getItem('cg_migrated_v2');
-  if(migrated) return;
-  try{
-    for(var i=0;i<local.length;i++){
-      var e=local[i];
-      var body=JSON.stringify({ts:e.ts,day:e.day,act_id:e.actId,act_name:e.actName,energy:e.energy,time:e.time,money:e.money||0,note:e.note||''});
-      await fetch(SB_URL+'/rest/v1/entradas',{method:'POST',headers:Object.assign({},SB_HEADERS,{'Prefer':'resolution=ignore-duplicates,return=minimal'}),body:body});
-    }
-    localStorage.setItem('cg_migrated_v2','1');
-    console.log('Migration done: '+local.length+' entries');
-  }catch(e){console.log('Migration error',e);}
-}
-
 /* ── INIT ── */
 window.toggleDrain=toggleDrain;
 window.initDrainListeners=initDrainListeners;
